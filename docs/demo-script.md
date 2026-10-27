@@ -6,7 +6,7 @@ is CI-tested (`pnpm test`), but the live model and Web Push are not.
 
 ## Pre-flight checklist (10 minutes before)
 
-- [ ] `pnpm exec wrangler deploy` is current; SITE_ORIGIN points at the deployed URL
+- [ ] `https://chaos-watcher.jsherron-test-account.workers.dev/journal` loads after Access sign-in; `pnpm exec wrangler deploy` is current (runbook §0)
 - [ ] Chaos flag at **v1** (or press ⚡ until the badge reads v1, then reset journal)
 - [ ] Journal pre-seeded: trigger 2–3 agent runs now so the audience sees overnight-style history
 - [ ] Push enabled on the demo machine's browser (🔔 Enable push), volume/silent state as desired

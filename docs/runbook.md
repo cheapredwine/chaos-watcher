@@ -1,6 +1,27 @@
 # Runbook — deploy, Access, VAPID, push, logs
 
-## 1. Deploy
+## 0. Current deployed state (as of 2026-10-27)
+
+| What | Where / value |
+|---|---|
+| Worker URL | `https://chaos-watcher.jsherron-test-account.workers.dev` |
+| Version | `8178ee7e` (deployed with `SITE_ORIGIN` = that URL, `REQUIRE_ACCESS=true`) |
+| Access app | `Chaos Watcher (journal + API)` — self-hosted, app id `ea6204ce-309d-432e-9884-21b604f46d5f` |
+| Access destinations | `/journal`, `/api/*` (ChaosCo `/` + `/details` intentionally public) |
+| Access policy | Allow → email `jsherron@cloudflare.com`; IdPs restricted to One Time PIN, Cloudflare account members, MyIdentity (Federated OIDC) |
+| VAPID secrets | Installed (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`); local `.dev.vars` exists (0600, gitignored) |
+| Alarm | **Armed 24/7** (decision: keep the hourly agent story always-on, ~$1–2/mo watcher burn on top of the $5 Workers Paid plan) |
+| Verified | Unauthenticated requests to every `/journal` + `/api/*` route 302 to the Access login; ChaosCo 200 public |
+
+Redeploy (vars are deploy-time, not stored in wrangler.jsonc):
+
+```bash
+pnpm exec wrangler deploy \
+  --var SITE_ORIGIN:https://chaos-watcher.jsherron-test-account.workers.dev \
+  --var REQUIRE_ACCESS:true
+```
+
+## 1. Deploy (first time / reference)
 
 ```bash
 pnpm install
@@ -88,5 +109,6 @@ pnpm run dev                               # local: journal at :8787/journal
 | `/api/push/public-key` → 503 | same |
 | Script watcher fails even on v1 | SITE_ORIGIN wrong or not reachable (check `wrangler deploy --var`) |
 | Access loop / 401 in browser | Access app paths must cover `/journal` and `/api/*`; REQUIRE_ACCESS var matches |
+| Access error **1043** on a (new) Access app | The org's default IdP set can include unhealthy/duplicate IdPs (this account had two GitHub IdPs; one broken). Fix: `PUT` the app with explicit `allowed_idps` listing only healthy IdPs (see §0 for the working list) |
 | Agent trace shows model errors | Check AI binding + quota; try again; consider alternate model per config comment |
 | Tests fail with remote-looking state | `remoteBindings: false` must be set in vitest.config.ts |

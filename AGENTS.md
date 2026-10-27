@@ -69,7 +69,14 @@ adaptation story; the live model is only exercised in rehearsal/smoke runs.
   expensive to hold — never run parallel browser sessions in tests; always
   `browser.close()` in a `finally`.
 - VAPID keys are secrets: `.dev.vars` locally, `wrangler secret put` in prod.
-  Never in source, never echoed.
+  Never in source, never echoed. (Keys are installed in the deployed Worker —
+  see runbook §0; values were piped straight into `wrangler secret put`, never
+  displayed.)
+- Cloudflare Access gotcha: error **1043** on a new Access app usually means the
+  org's default IdP set includes an unhealthy provider (this account: duplicate
+  GitHub IdPs). Restrict `allowed_idps` explicitly on every new Access app.
+- Deployment state (URL, Access app/policy ids, vars, alarm policy) lives in
+  `docs/runbook.md` §0 — update it when you redeploy.
 
 ## When you change a ChaosCo variant
 
