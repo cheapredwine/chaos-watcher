@@ -1,0 +1,26 @@
+{
+  "name": "chaos-watcher",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src test"
+  },
+  "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0",
+    "agents": "^0.30.1",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.7",
+    "@cloudflare/workers-types": "^5.20261026.1",
+    "@types/web-push": "^3.6.4",
+    "oxlint": "^1.89.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "4.148.0"
+  }
+}

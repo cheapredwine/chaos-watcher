@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chaos Watcher — journal</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#262b36; --fg:#e6e8ee; --dim:#8b93a5;
+          --orange:#f6821f; --ok:#3fb950; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--fg); font:14px/1.5 ui-sans-serif,system-ui,sans-serif;
+         max-width:880px; margin:0 auto; padding:2rem 1rem 4rem; }
+  h1 { font-size:1.25rem; margin:0 0 .25rem; letter-spacing:.02em; }
+  .sub { color:var(--dim); margin-bottom:1.25rem; }
+  .badges { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; }
+  .badge { border:1px solid var(--line); border-radius:999px; padding:.15rem .7rem;
+           font-size:.78rem; color:var(--dim); background:var(--panel); }
+  .badge.v { color:var(--orange); border-color:var(--orange); }
+  .toolbar { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+  button { background:var(--panel); color:var(--fg); border:1px solid var(--line);
+           border-radius:8px; padding:.45rem .9rem; cursor:pointer; font-size:.85rem; }
+  button:hover { border-color:var(--dim); }
+  button:disabled { opacity:.45; cursor:wait; }
+  button.primary { border-color:var(--orange); color:var(--orange); }
+  button.danger { border-color:var(--bad); color:var(--bad); }
+  #status { min-height:1.4em; font-size:.82rem; color:var(--dim); margin-bottom:1rem; }
+  #status.err { color:var(--bad); }
+  section { margin-bottom:2rem; }
+  h2 { font-size:.95rem; color:var(--dim); text-transform:uppercase; letter-spacing:.08em;
+       border-bottom:1px solid var(--line); padding-bottom:.35rem; }
+  .row { display:flex; gap:.6rem; align-items:baseline; padding:.5rem .6rem;
+         border:1px solid var(--line); border-radius:8px; margin-bottom:.4rem;
+         background:var(--panel); cursor:pointer; }
+  .row:hover { border-color:var(--dim); }
+  .id { color:var(--dim); font-size:.78rem; min-width:4.5rem; }
+  .mode { font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; min-width:4.2rem; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  .sum { flex:1; }
+  .trace { display:none; background:#0b0d12; border:1px solid var(--line); border-radius:8px;
+           padding:.7rem .9rem; margin:-.35rem 0 .5rem; font:12px/1.6 ui-monospace,Menlo,monospace; }
+  .trace.open { display:block; }
+  .t-line { white-space:pre-wrap; word-break:break-word; }
+  .t-kind { color:var(--orange); font-weight:600; }
+  .t-err { color:var(--bad); }
+  .finding { border-left:3px solid var(--orange); background:var(--panel);
+             padding:.5rem .8rem; border-radius:0 8px 8px 0; margin-bottom:.4rem; }
+  .finding time { color:var(--dim); font-size:.75rem; display:block; }
+  details.cfg { color:var(--dim); font-size:.78rem; margin-top:2rem; }
+</style>
+</head>
+<body>
+<h1>CHAOS WATCHER</h1>
+<div class="sub">One Worker: the site under test, a script watcher, an agent watcher, and this journal — the agent's memory of everything it did.</div>
+
+<div class="badges">
+  <span class="badge v" id="chaosBadge">v?</span>
+  <span class="badge" id="alarmBadge">…</span>
+  <span class="badge" id="pushBadge">…</span>
+</div>
+
+<div class="toolbar">
+  <button id="btnScript">▶ Run script watcher</button>
+  <button id="btnAgent" class="primary">▶ Run agent watcher</button>
+  <button id="btnChaos">⚡ CHAOS → next variant</button>
+  <button id="btnPush">🔔 Enable push</button>
+  <button id="btnTestPush">Send test push</button>
+  <button id="btnReset" class="danger">Reset journal</button>
+</div>
+<div id="status"></div>
+
+<section>
+  <h2>Runs</h2>
+  <div id="runs"><div class="row">loading…</div></div>
+</section>
+
+<section>
+  <h2>Findings (agent memory, deduped)</h2>
+  <div id="findings"><div class="row">loading…</div></div>
+</section>
+
+<details class="cfg">
+  <summary>How to read this page</summary>
+  <p>Each run records what its watcher did. The <b>script watcher</b> runs the steps a
+  developer enumerated. The <b>agent watcher</b> shows its trace: every step the <i>model</i>
+  chose — browse, judge, report. Press CHAOS to mutate the site and run both again.</p>
+</details>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const btns = ["btnScript","btnAgent","btnChaos","btnPush","btnTestPush","btnReset"].map($);
+
+async function jfetch(url, opts) {
+  const r = await fetch(url, opts);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+function status(msg, err) { const s = $("status"); s.textContent = msg; s.className = err ? "err" : ""; }
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+let state = null;
+const expanded = new Set();
+
+async function refresh() {
+  try {
+    state = await jfetch("/api/state");
+    $("chaosBadge").textContent = "ChaosCo v" + state.chaosVersion;
+    $("alarmBadge").textContent = state.alarmConfigured ? "hourly alarm armed" : "no alarm";
+    $("pushBadge").textContent = state.vapidConfigured ? "push ready" : "push not configured";
+    renderRuns(state.runs || []);
+    renderFindings(state.findings || []);
+  } catch (e) { status("refresh failed: " + e.message, true); }
+}
+
+function renderRuns(runs) {
+  const box = $("runs"); box.textContent = "";
+  if (!runs.length) { box.append(el("div", "row", "no runs yet — press a run button")); return; }
+  for (const r of runs) {
+    const row = el("div", "row");
+    row.append(el("span", "id", "#" + r.id));
+    row.append(el("span", "mode", r.mode));
+    const okEl = el("span", r.ok ? "ok" : "bad", r.ok ? "✓" : "✗");
+    row.append(okEl);
+    row.append(el("span", "id", "v" + r.chaos_version));
+    row.append(el("span", "sum", r.summary || ""));
+    row.append(el("span", "id", new Date(r.started_at).toLocaleTimeString()));
+    row.addEventListener("click", () => toggleTrace(r.id));
+    box.append(row);
+    const tv = el("div", "trace"); tv.id = "trace-" + r.id;
+    tv.append(el("div", "t-line", "click to load trace…"));
+    box.append(tv);
+    if (expanded.has(r.id)) { tv.classList.add("open"); loadTrace(r.id); }
+  }
+}
+
+async function loadTrace(id) {
+  const tv = $("trace-" + id);
+  try {
+    const run = await jfetch("/api/runs/" + id);
+    tv.textContent = "";
+    const entries = JSON.parse(run.trace || "[]");
+    if (!entries.length) { tv.append(el("div", "t-line", "(script watcher — no trace: its steps were written by a human)")); return; }
+    for (const t of entries) {
+      const line = el("div", "t-line");
+      const kind = el("span", t.kind === "error" ? "t-err" : "t-kind",
+        t.kind === "tool" ? "→ tool " : t.kind === "final" ? "✓ final " : "✗ error ");
+      line.append(kind);
+      if (t.name) line.append(t.name + " " + JSON.stringify(t.args));
+      if (t.preview) line.append("\n    ↳ " + t.preview);
+      if (t.error) line.append("\n    ↳ " + t.error);
+      line.append("  (" + t.ms + "ms)");
+      tv.append(line);
+    }
+  } catch (e) { tv.textContent = "trace load failed: " + e.message; }
+}
+
+function toggleTrace(id) {
+  const tv = $("trace-" + id);
+  const open = tv.classList.toggle("open");
+  if (open) { expanded.add(id); loadTrace(id); } else { expanded.delete(id); }
+}
+
+function renderFindings(findings) {
+  const box = $("findings"); box.textContent = "";
+  if (!findings.length) { box.append(el("div", "row", "nothing worth knowing yet")); return; }
+  for (const f of findings) {
+    const d = el("div", "finding");
+    d.append(el("time", null, new Date(f.created_at).toLocaleString()));
+    d.append(el("span", null, f.text));
+    box.append(d);
+  }
+}
+
+async function busy(btn, fn) {
+  btn.disabled = true;
+  try { await fn(); } catch (e) { status(e.message, true); }
+  btn.disabled = false;
+  refresh();
+}
+
+function urlBase64ToUint8Array(b64) {
+  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+  const binary = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+$("btnScript").addEventListener("click", (e) => busy(e.target, async () => {
+  status("running script watcher…");
+  const r = await jfetch("/api/run/script", { method: "POST" });
+  status("script run #" + r.runId + ": " + r.summary);
+}));
+$("btnAgent").addEventListener("click", (e) => busy(e.target, async () => {
+  status("running agent watcher… (the model is deciding what to do)");
+  const r = await jfetch("/api/run/agent", { method: "POST" });
+  status("agent run #" + r.runId + ": " + r.summary);
+}));
+$("btnChaos").addEventListener("click", (e) => busy(e.target, async () => {
+  const r = await jfetch("/api/chaos", { method: "POST" });
+  status("site mutated → ChaosCo v" + r.chaosVersion);
+}));
+$("btnPush").addEventListener("click", (e) => busy(e.target, async () => {
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") { status("notification permission denied", true); return; }
+  await navigator.serviceWorker.register("/sw.js");
+  const reg = await navigator.serviceWorker.ready;
+  const { publicKey } = await jfetch("/api/push/public-key");
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey).buffer,
+  });
+  const s = sub.toJSON();
+  await jfetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ endpoint: s.endpoint, keys: s.keys }),
+  });
+  status("push enabled ✓");
+}));
+$("btnTestPush").addEventListener("click", (e) => busy(e.target, async () => {
+  const r = await jfetch("/api/push/test", { method: "POST" });
+  status("test push sent to " + r.subscriptions + " subscription(s)");
+}));
+$("btnReset").addEventListener("click", (e) => busy(e.target, async () => {
+  if (!confirm("Erase all runs, findings and snapshots?")) return;
+  await jfetch("/api/reset", { method: "POST" });
+  expanded.clear();
+  status("journal reset");
+}));
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
