@@ -2,6 +2,7 @@
   "name": "chaos-watcher",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

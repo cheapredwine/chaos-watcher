@@ -1,5 +1,9 @@
 # Chaos Watcher
 
+> ⚠️ **NOT OFFICIAL CLOUDFLARE.** Not affiliated with or endorsed by Cloudflare, Inc.
+> NO WARRANTIES, EXPRESS OR IMPLIED. Effectively untested demo code — read everything
+> and dry-run before you run. You assume all risk. See [DISCLAIMER.md](./DISCLAIMER.md).
+
 One Cloudflare Worker contains a fake company website (**ChaosCo**), a **script
 watcher** that monitors it, an **agent watcher** that monitors it, and the
 **journal** that proves what each one did. The site can be mutated live
