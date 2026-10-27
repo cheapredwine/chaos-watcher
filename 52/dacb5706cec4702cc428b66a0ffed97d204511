@@ -1,0 +1,21 @@
+src/index.ts
+  s_05e53e1fc18358::t_49e73af030a9e4 1-125
+worker-configuration.d.ts
+  s_05e53e1fc18358::t_3982a4dae6ef30 1-16254
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "52dacb5706cec4702cc428b66a0ffed97d204511",
+  "prompts": {},
+  "sessions": {
+    "s_05e53e1fc18358": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ea044e09cffeMpjf7p55X40BRX",
+        "model": "unknown"
+      },
+      "human_author": "Jason Sherron <jsherron@cloudflare.com>"
+    }
+  }
+}
