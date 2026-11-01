@@ -72,7 +72,7 @@ it("rejects invalid chaos versions", async () => {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ version: 7 }),
   });
-  expect(res.status).toBe(500);
+  expect(res.status).toBe(400);
   expect((await jbody<{ error: string }>(res)).error).toContain("1-4");
 });
 
