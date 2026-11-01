@@ -9,6 +9,12 @@ export default defineConfig({
       // locally in workerd. The AI binding is never called in tests — the
       // model seam supplies canned decisions.
       remoteBindings: false,
+      // .dev.vars (real deployment secrets) is picked up automatically and
+      // would leak VAPID_* into the test environment. Force them empty so
+      // the unconfigured-path tests see the intended state.
+      miniflare: {
+        bindings: { VAPID_PUBLIC_KEY: "", VAPID_PRIVATE_KEY: "", VAPID_SUBJECT: "" },
+      },
     }),
   ],
   test: {
