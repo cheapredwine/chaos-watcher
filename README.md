@@ -35,7 +35,7 @@ Every platform claim has a visible moment in the demo, not a slide:
 
 ```bash
 pnpm install
-pnpm test          # 36 tests, incl. the demo contract — CI proves the story
+pnpm run verify     # lint + test + typecheck — the CI done-check
 pnpm exec wrangler login
 pnpm run dev       # http://localhost:8787/journal
 ```

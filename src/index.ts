@@ -64,11 +64,17 @@ export default {
       if (request.method === "POST") {
         if (path === "/api/chaos") {
           const body = await readJson(request);
-          const v =
-            body.version != null
-              ? await agent.setChaosVersion(Number(body.version))
-              : await agent.cycleChaos();
-          return json({ chaosVersion: v });
+          if (body.version != null) {
+            const v = Number(body.version);
+            // Validate before crossing the DO RPC boundary: a throw inside a
+            // callable agent method surfaces as an uncaught promise rejection
+            // in the runtime, even when the caller catches it.
+            if (!Number.isInteger(v) || v < 1 || v > 4) {
+              return json({ error: "chaos version must be an integer 1-4" }, 400);
+            }
+            return json({ chaosVersion: await agent.setChaosVersion(v) });
+          }
+          return json({ chaosVersion: await agent.cycleChaos() });
         }
         if (path === "/api/run/script") return json(await agent.runNow("script"));
         if (path === "/api/run/agent") return json(await agent.runNow("agent"));
